@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="Fighting_AI:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/Fighting_AI_jar</output-path>
+    <root id="archive" name="Fighting_AI.jar">
+      <element id="module-output" name="Fighting_AI" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/AIToolKit.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
