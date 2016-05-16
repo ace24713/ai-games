@@ -116,17 +116,17 @@ public class Node {
     }
 
     /* Execute MCTS within UCT time frame */
-    public Action mcts() {
+    public Action mcts(KNNPlayerModel opponentModel) {
         long start = System.nanoTime();
         for ( ; System.nanoTime() - start <= UCT_TIME; ) {
-            uct();
+            uct(opponentModel);
         }
 
         return getBestVisitAction();
     }
 
     /* Run simulation and return evaluation value as results */
-    public double playout() {
+    public double playout(KNNPlayerModel opponentModel) {
 
         mAction.clear();
         oppAction.clear();
@@ -140,18 +140,38 @@ public class Node {
         }
 
         // ACE: this looks like where i'd put the opponent prediction for MCTS roll-out... but where for probability?
-        for ( int i = 0; i < 5; i++ ) {
-            oppAction.add( oppActions.get(rnd.nextInt( oppActions.size() ) ) );
+        FrameData nFrameData = frameData;
+        //System.out.println("APR: ");
+        for (int i = 0; i < 5; i++)
+        {
+            opponentModel.getInformation(nFrameData);
+            opponentModel.processing();
+            float val = rnd.nextFloat();
+            for (ActionProbability apr : opponentModel.getOppProbabilities())
+            {
+                val -= apr.probability;
+                //System.out.println("    " + apr.action + ":" + apr.probability + "   " + val);
+                if (val <= 0)
+                {
+                    oppAction.add(apr.action);
+                    break;
+                }
+            }
+            nFrameData = simulator.simulate(frameData, playerNumber, mAction, oppAction, (i+1)*SIMULATION_TIME/5);
         }
 
-        //Run Simulation
-        FrameData nFrameData = simulator.simulate( frameData, playerNumber, mAction, oppAction, SIMULATION_TIME );
+        //System.out.print("Predicted Action Sequence: ");
+        //while (!oppAction.isEmpty())
+        //{
+        //    System.out.print(oppAction.pop() + " ");
+        //}
+        //System.out.println();
 
         return getScore( nFrameData );
     }
 
     /* Perform UCT and return evaluation value */
-    public double uct() {
+    public double uct(KNNPlayerModel opponentModel) {
 
         Node selectedNode = null;
         double bestUcb;
@@ -174,11 +194,16 @@ public class Node {
             }
         }
 
+        // ACE: need two separate measurements, one for probability which determines what to explore, and one UCB
+        // atm both are the same
+
         double score = 0;
 
         if ( selectedNode.games == 0 ) {
-            score = selectedNode.playout();
+            score = selectedNode.playout(opponentModel);
         }
+
+        // ACE: okay, the actual problem is that there is no "2 player" implementation. It treats the game as a single player game where the opponent retroactively acts randomly. which is NOT RIGHT, as far as I can tell
 
         else {
             if ( selectedNode.children == null ) {
@@ -186,26 +211,26 @@ public class Node {
                     if ( UCT_CREATE_NODE_THRESHOLD <= selectedNode.games ) {
                         selectedNode.createNode();
                         selectedNode.isCreateNode = true;
-                        score = selectedNode.uct();
+                        score = selectedNode.uct(opponentModel);
                     }
 
                     else {
-                        score = selectedNode.playout();
+                        score = selectedNode.playout(opponentModel);
                     }
                 }
 
                 else {
-                    score = selectedNode.playout();
+                    score = selectedNode.playout(opponentModel);
                 }
             }
 
             else {
                 if ( selectedNode.depth < UCT_TREE_DEPTH ) {
-                    score = selectedNode.uct();
+                    score = selectedNode.uct(opponentModel);
                 }
 
                 else {
-                    selectedNode.playout();
+                    selectedNode.playout(opponentModel);
                 }
             }
         }

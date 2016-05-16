@@ -61,6 +61,8 @@ public class Fighting_AI implements AIInterface {
 
     private Node rootNode;
 
+    private KNNPlayerModel opponentModel;
+
     /* Debug mode activation boolean. If true, constructs output log. */
     public static final boolean DEBUG_MODE = true;
 
@@ -87,6 +89,8 @@ public class Fighting_AI implements AIInterface {
             myCharacter = frameData.getP2();
             oppCharacter = frameData.getP1();
         }
+
+        opponentModel.getInformation(frameData);
     }
 
 
@@ -102,6 +106,9 @@ public class Fighting_AI implements AIInterface {
 
         this.myActions = new LinkedList<Action>();
         this.oppActions = new LinkedList<Action>();
+
+        this.opponentModel = new KNNPlayerModel();
+        opponentModel.initialize(gameData, playerNumber);
 
         simulator = gameData.getSimulator();
 
@@ -164,8 +171,10 @@ public class Fighting_AI implements AIInterface {
                         new Node( simulatorAheadFrameData, null, myActions, oppActions, gameData, playerNumber, commandCenter );
                 rootNode.createNode();
 
+                opponentModel.updateKNN();
+
                 /* Execute MCTS */
-                Action bestAction = rootNode.mcts();
+                Action bestAction = rootNode.mcts(opponentModel);
                 if ( Fighting_AI.DEBUG_MODE ) {
                     rootNode.printNode(rootNode);
                 }

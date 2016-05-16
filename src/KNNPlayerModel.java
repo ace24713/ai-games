@@ -67,7 +67,7 @@ public class KNNPlayerModel {
 	/** a deque retaining actions based on the current opponent position*/
 	Deque<Action> oppActOptions;
 	/** counts the number of the k-nearest data every attack action*/
-	int[] checkAct;
+	float[] checkAct;
 
 	/** an opponent's action predicted by k-nn*/
 	ArrayList<ActionProbability> actionProbabilities;
@@ -103,7 +103,7 @@ public class KNNPlayerModel {
 		this.myAct = new LinkedList<Action>();
 		this.oppActOptions = new LinkedList<Action>();
 		this.actionProbabilities = new ArrayList<ActionProbability>();
-		checkAct = new int[EnumSet.allOf(Action.class).size()];
+		checkAct = new float[EnumSet.allOf(Action.class).size()];
 		
 		setAirGroundAction();
 		
@@ -211,10 +211,12 @@ public class KNNPlayerModel {
 				act.setDistance((int) Math.sqrt((act.getX() + x) * (act.getX() + x) + (act.getY() + y) * (act.getY() + y)));
 			if (act.getDistance() < K_DISTANCE) temp.add(act);
 		}
+
 		
 		array = new ActData[temp.size()];
 		// execute sort method
 		array = actSort(temp);
+		threshold = Math.min(threshold, array.length);
 		// predict the next opponent's action using k-nn
 		setOppAct(array, Math.min(threshold,THRESHOLD));
 		
@@ -284,15 +286,18 @@ public class KNNPlayerModel {
 		Action[] subAct = Action.values();
 		int max = 1;
 
-		int instCount = threshold + oppActOptions.size();
+
+		float instCount = (float)threshold + ((float)oppActOptions.size()*.001f);
 		
 		// count the number of the data every action type 
 		for(int i = 0 ; i < threshold ; i++){
 			checkAct[array[i].getAct().ordinal()] ++;
 		}
 		for (Action act : oppActOptions) {
-			checkAct[act.ordinal()] ++;
+			checkAct[act.ordinal()] += .001;
 		}
+
+		//System.out.println("KNN Nodes: " + threshold + " TotalCount: " + instCount);
 
 		actionProbabilities.clear();
 
@@ -300,7 +305,7 @@ public class KNNPlayerModel {
 		{
 			ActionProbability apr = new ActionProbability();
 			apr.action = subAct[i];
-			apr.probability = ((float) checkAct[i]) / ((float) instCount);
+			apr.probability = checkAct[i] / instCount;
 			actionProbabilities.add(apr);
 		}
 
