@@ -10,17 +10,28 @@ import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Vector;
+import java.util.Collections;
+import java.util.ArrayList;
 
-import support.Command;
 import enumerate.Action;
 import enumerate.AttackAction;
 import enumerate.Position;
 import enumerate.State;
-import mizunoAI_simulator.Simulator;
 import structs.*;
-import gameInterface.AIInterface;
 
-public class mizunoAI implements AIInterface {
+class ActionProbability implements Comparable<ActionProbability>
+{
+	public Action action;
+	public Float probability;
+
+	@Override
+	public int compareTo(ActionProbability r)
+	{
+		return Float.compare(r.probability, probability);
+	}
+}
+
+public class KNNPlayerModel {
 	/** a specific distance used in k-nn*/
 	private static final int K_DISTANCE = 50;
 	private static final double K_THRESHOLD = 0.3;
@@ -32,7 +43,6 @@ public class mizunoAI implements AIInterface {
 	boolean p;
 
 	GameData gd;
-	Key inputKey;
 	FrameData fd;
 	
 	/** my CharacterData*/
@@ -54,14 +64,13 @@ public class mizunoAI implements AIInterface {
 	Deque<Action> A_Act;
 	/** a deque retaining actions based on the current my position*/
 	Deque<Action> myAct;
-	/** an opponent's action predicted by k-nn*/
-	Deque<Action> oppAct;
+	/** a deque retaining actions based on the current opponent position*/
+	Deque<Action> oppActOptions;
 	/** counts the number of the k-nearest data every attack action*/
 	int[] checkAct;
-	
-	Command cc;
-	/** use simulator package*/
-	Simulator simulator;
+
+	/** an opponent's action predicted by k-nn*/
+	ArrayList<ActionProbability> actionProbabilities;
 	
 	/** a previous opponent's action*/
 	Action preOppAct;
@@ -73,16 +82,13 @@ public class mizunoAI implements AIInterface {
 	int nowRound;
 	
 	long time;
-	
-	@Override
+
 	public synchronized int initialize(GameData gameData, boolean playerNumber) {
 
 		gd = gameData;
 		p = playerNumber;
-		
-		inputKey = new Key();
+
 		fd = new FrameData();
-		cc = new Command();
 		
 		preOppAct = Action.NEUTRAL;
 		nowOppAct = Action.NEUTRAL;
@@ -90,13 +96,13 @@ public class mizunoAI implements AIInterface {
 		preRound = 0;
 		nowRound = 0;
 
-		simulator = new Simulator(gd, this.p);
 		this.oppActData_GG = new LinkedList<ActData>();
 		this.oppActData_GA = new LinkedList<ActData>();
 		this.oppActData_AG = new LinkedList<ActData>();
 		this.oppActData_AA = new LinkedList<ActData>();
 		this.myAct = new LinkedList<Action>();
-		this.oppAct = new LinkedList<Action>();
+		this.oppActOptions = new LinkedList<Action>();
+		this.actionProbabilities = new ArrayList<ActionProbability>();
 		checkAct = new int[EnumSet.allOf(Action.class).size()];
 		
 		setAirGroundAction();
@@ -104,11 +110,9 @@ public class mizunoAI implements AIInterface {
 		return 0;
 	}
 
-	@Override
 	public synchronized void getInformation(FrameData frameData) {
 		time = System.currentTimeMillis();
 		fd = frameData;
-		cc.setFrameData(fd, p);
 		if(p){
 			my = fd.getP1();
 			opp = fd.getP2();
@@ -129,76 +133,56 @@ public class mizunoAI implements AIInterface {
 			oppActData_AA.clear();
 		}}
 
-	@Override
-	public synchronized void processing() {
-		boolean temp;
-		
-		inputKey.empty();
-		if(!fd.getEmptyFlag()){	
-			if(fd.getRemainingTime() > 0){
-				
-				nowOppAct = opp.getAction();
-				Vector<MotionData> oppMotion = this.p? gd.getPlayerTwoMotion():gd.getPlayerOneMotion();
-				
-				// record an opponent's attack data each time an opponent performs an attack action
-				if(oppMotion.elementAt(opp.getAction().ordinal()).getFrameNumber() == opp.getRemainingFrame()){
-					try{
-							AttackAction.valueOf(nowOppAct.name());
-							
-							if(my.isFront()){
-								ActData act = new ActData(opp.getX()-my.getX(),opp.getY()-my.getY(),nowOppAct);
-								setOppAttackData(act);
-							}else{
-								ActData act = new ActData(my.getX()-opp.getX(),my.getY()-opp.getY(),nowOppAct);
-								setOppAttackData(act);
-							}
-						}catch (Exception e){
-					}
-				}
-					
-				{
-					if(my.getX() < opp.getX()) temp=true;
-					else temp=false;
-				}
-				
-				// update the frameData by 15 frames to predict the positions after delay
-				update(my);
-				update(opp);
-				simulator.setFrameData(fd);
-				setPosition();
-				setMyAct();
+	public synchronized void updateKNN(){
+		nowOppAct = opp.getAction();
+		Vector<MotionData> oppMotion = this.p? gd.getPlayerTwoMotion():gd.getPlayerOneMotion();
 
-				if(cc.getskillFlag()){
-					inputKey = cc.getSkillKey();
+		// record an opponent's attack data each time an opponent performs an attack action
+		if(oppMotion.elementAt(opp.getAction().ordinal()).getFrameNumber() == opp.getRemainingFrame()){
+			try{
+				AttackAction.valueOf(nowOppAct.name());
+
+				if(my.isFront()){
+					ActData act = new ActData(opp.getX()-my.getX(),opp.getY()-my.getY(),nowOppAct);
+					setOppAttackData(act);
 				}else{
-					if(cc.getMyCharacter().isControl() || my.getRemainingFrame() <= 0){
-						// default action
-						Action act = Action.CROUCH_GUARD;
-						
-						// predict a next opponent's attack action using k-nn and conduct simulation against the predicted action
-						if(calculateActDistance(getOppAttackData(),opp.getX()-my.getX(),opp.getY()-my.getY())){
-							act = simulator.simulate(myAct,oppAct,checkAct);
-						}
-						
-						if(my.getAction() == Action.DOWN) my.setFront(temp);
-						cc.commandCall(act.name());
-						inputKey = cc.getSkillKey();
-					}
+					ActData act = new ActData(my.getX()-opp.getX(),my.getY()-opp.getY(),nowOppAct);
+					setOppAttackData(act);
 				}
+			}catch (Exception e){
 			}
 		}
-		
+
 		fin();
 	}
 
-	@Override
-	public synchronized Key input() {
-		time = -time + System.currentTimeMillis();
-		System.out.println(time);
-		return inputKey;
+	public synchronized void processing() {
+		boolean temp;
+
+		{
+			if(my.getX() < opp.getX()) temp=true;
+			else temp=false;
+		}
+
+		// update the frameData by 15 frames to predict the positions after delay
+		update(my);
+		update(opp);
+		setPosition();
+		setMyAct();
+		setOppActOptions();
+
+		// default action
+		Action act = Action.CROUCH_GUARD;
+
+		// predict a next opponent's attack action using k-nn and conduct simulation against the predicted action
+		calculateActDistance(getOppAttackData(), opp.getX() - my.getX(), opp.getY() - my.getY());
 	}
 
-	@Override
+	public synchronized ArrayList<ActionProbability> getOppProbabilities()
+	{
+		return actionProbabilities;
+	}
+
 	public synchronized void close() {
 		oppActData_GG.clear();
 		oppActData_GA.clear();
@@ -210,7 +194,6 @@ public class mizunoAI implements AIInterface {
 	private synchronized void fin(){
 		preOppAct = nowOppAct;
 		preRound = nowRound;
-		oppAct.clear();
 	}
 	
 	/** count the number of the recorded data within a specific distance from the current relative position*/
@@ -220,14 +203,14 @@ public class mizunoAI implements AIInterface {
 		ActData[] array;
 		
 		// calculate distance from the current relative position to all recorded data
-		for(Iterator<ActData> i = actData.iterator() ; i.hasNext() ; ){
+		for(Iterator<ActData> i = actData.iterator() ; i.hasNext() ; ) {
 			ActData act = new ActData(i.next());
-			if(my.isFront()) act.setDistance((int)Math.sqrt((act.getX()-x)*(act.getX()-x)+(act.getY()-y)*(act.getY()-y)));
-			else act.setDistance((int)Math.sqrt((act.getX()+x)*(act.getX()+x)+(act.getY()+y)*(act.getY()+y)));
-			if( act.getDistance() < K_DISTANCE) temp.add(act);
+			if (my.isFront())
+				act.setDistance((int) Math.sqrt((act.getX() - x) * (act.getX() - x) + (act.getY() - y) * (act.getY() - y)));
+			else
+				act.setDistance((int) Math.sqrt((act.getX() + x) * (act.getX() + x) + (act.getY() + y) * (act.getY() + y)));
+			if (act.getDistance() < K_DISTANCE) temp.add(act);
 		}
-		
-		if(temp.size() < Math.min(threshold,THRESHOLD)) return false;		
 		
 		array = new ActData[temp.size()];
 		// execute sort method
@@ -288,31 +271,40 @@ public class mizunoAI implements AIInterface {
 	/** set my action to a deque based on the current my position*/
 	private synchronized void setMyAct(){
 		if(my.getState() == State.AIR) myAct = A_Act;
-		else myAct = G_Act;		
+		else myAct = G_Act;
+	}
+
+	private synchronized void setOppActOptions(){
+		if (opp.getState() == State.AIR) oppActOptions = A_Act;
+		else oppActOptions = G_Act;
 	}
 	
 	/** set the opponent's next action using k-nn*/
 	private synchronized void setOppAct(ActData[] array,int threshold){
 		Action[] subAct = Action.values();
 		int max = 1;
+
+		int instCount = threshold + oppActOptions.size();
 		
 		// count the number of the data every action type 
 		for(int i = 0 ; i < threshold ; i++){
 			checkAct[array[i].getAct().ordinal()] ++;
 		}
-
-		// ACE: here I would compute a probability of all actions taken by the opponent instead of simply returning a vector of most occuring moves in the checkAct array
-		// predict the opponent's next action by k-nn
-		for(int i = 0 ; i < EnumSet.allOf(Action.class).size() ; i++){
-			if(checkAct[i] > max){
-				oppAct.clear();
-				oppAct.add(subAct[i]);
-				max = checkAct[i];
-			}
-			else if(checkAct[i] == max){
-				oppAct.add(subAct[i]);
-			}
+		for (Action act : oppActOptions) {
+			checkAct[act.ordinal()] ++;
 		}
+
+		actionProbabilities.clear();
+
+		for (int i = 0; i < EnumSet.allOf(Action.class).size() ; i++)
+		{
+			ActionProbability apr = new ActionProbability();
+			apr.action = subAct[i];
+			apr.probability = ((float) checkAct[i]) / ((float) instCount);
+			actionProbabilities.add(apr);
+		}
+
+		Collections.sort(actionProbabilities);
 	}
 	
 	/** set the current position relationship*/
@@ -420,10 +412,5 @@ public class mizunoAI implements AIInterface {
 		{
 			one.setSpeedY(one.getSpeedY()+1);
 		}
-	}
-
-	@Override
-	public String getCharacter() {
-		return CHARACTER_ZEN;
 	}
 }

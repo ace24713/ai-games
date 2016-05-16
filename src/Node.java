@@ -139,6 +139,7 @@ public class Node {
             mAction.add( myActions.get( rnd.nextInt( myActions.size() ) ) );
         }
 
+        // ACE: this looks like where i'd put the opponent prediction for MCTS roll-out... but where for probability?
         for ( int i = 0; i < 5; i++ ) {
             oppAction.add( oppActions.get(rnd.nextInt( oppActions.size() ) ) );
         }
@@ -163,6 +164,7 @@ public class Node {
             }
 
             else {
+                // ACE: implement probability of action happening into UCB... somehow
                 child.ucb = getUcb( child.score / child.games, games, child.games );
             }
 
