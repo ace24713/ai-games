@@ -287,14 +287,14 @@ public class KNNPlayerModel {
 		int max = 1;
 
 
-		float instCount = (float)threshold + ((float)oppActOptions.size()*.001f);
+		float instCount = (float)threshold + ((float)oppActOptions.size()*.01f);
 		
 		// count the number of the data every action type 
 		for(int i = 0 ; i < threshold ; i++){
 			checkAct[array[i].getAct().ordinal()] ++;
 		}
 		for (Action act : oppActOptions) {
-			checkAct[act.ordinal()] += .001;
+			checkAct[act.ordinal()] += .01f;
 		}
 
 		//System.out.println("KNN Nodes: " + threshold + " TotalCount: " + instCount);

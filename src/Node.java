@@ -140,35 +140,21 @@ public class Node {
         }
 
         // ACE: this looks like where i'd put the opponent prediction for MCTS roll-out... but where for probability?
-        FrameData nFrameData = frameData;
-        //System.out.println("APR: ");
+
         for (int i = 0; i < 5; i++)
         {
-            opponentModel.getInformation(nFrameData);
-            opponentModel.processing();
             float val = rnd.nextFloat();
             for (ActionProbability apr : opponentModel.getOppProbabilities())
             {
                 val -= apr.probability;
-                //System.out.println("    " + apr.action + ":" + apr.probability + "   " + val);
                 if (val <= 0)
                 {
-                    //System.out.println(apr.action);
                     oppAction.add(apr.action);
                     break;
                 }
             }
-            //System.out.print(oppAction.size() + " ");
-            nFrameData = simulator.simulate(frameData, playerNumber, mAction, new LinkedList<Action>(oppAction), (i+1)*SIMULATION_TIME/5);
         }
-        //System.out.println(oppAction.size());
-
-        //System.out.print("Predicted Action Sequence: ");
-        //while (!oppAction.isEmpty())
-        //{
-        //    System.out.print(oppAction.pop() + " ");
-        //}
-        //System.out.println();
+        FrameData nFrameData = simulator.simulate(frameData, playerNumber, mAction, oppAction, SIMULATION_TIME);
 
         return getScore( nFrameData );
     }

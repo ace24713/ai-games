@@ -172,6 +172,7 @@ public class Fighting_AI implements AIInterface {
                 rootNode.createNode();
 
                 opponentModel.updateKNN();
+                opponentModel.processing();
 
                 /* Execute MCTS */
                 Action bestAction = rootNode.mcts(opponentModel);
