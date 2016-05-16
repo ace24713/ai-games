@@ -153,12 +153,15 @@ public class Node {
                 //System.out.println("    " + apr.action + ":" + apr.probability + "   " + val);
                 if (val <= 0)
                 {
+                    //System.out.println(apr.action);
                     oppAction.add(apr.action);
                     break;
                 }
             }
-            nFrameData = simulator.simulate(frameData, playerNumber, mAction, oppAction, (i+1)*SIMULATION_TIME/5);
+            //System.out.print(oppAction.size() + " ");
+            nFrameData = simulator.simulate(frameData, playerNumber, mAction, new LinkedList<Action>(oppAction), (i+1)*SIMULATION_TIME/5);
         }
+        //System.out.println(oppAction.size());
 
         //System.out.print("Predicted Action Sequence: ");
         //while (!oppAction.isEmpty())
