@@ -301,7 +301,7 @@ public class Node {
     public void printNode( Node node ) {
         System.out.println( "Number of Trials:" + node.games );
         for (int i = 0; i < node.children.length; i++) {
-            System.out.println( i + ", Frequency of Recurrence:" + node.children[i].games + ", Tree Depth Location:" + node.children[i].depth + ", Score:" + node.children[i].score / node.children[i].games + ", UCB:" + node.children[i].ucb);
+            System.out.println( i + ", Frequency of Recurrence:" + node.children[i].games + ", Tree Depth Location:" + node.children[i].depth + ", Score:" + node.children[i].score / node.children[i].games + ", UCB:" + node.children[i].ucb + ", Number of Possible Actions:" + node.children[i].myActions.size() );
         }
 
         System.out.println( "" );

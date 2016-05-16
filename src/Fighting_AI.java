@@ -62,7 +62,7 @@ public class Fighting_AI implements AIInterface {
     private Node rootNode;
 
     /* Debug mode activation boolean. If true, constructs output log. */
-    public static final boolean DEBUG_MODE = false;
+    public static final boolean DEBUG_MODE = true;
 
     @Override
     public void close() { }
@@ -200,6 +200,17 @@ public class Fighting_AI implements AIInterface {
                 }
             }
         }
+
+        if ( DEBUG_MODE ) {
+            System.out.println( "Number of possible myActions: " + myActions.size() );
+
+            int n = 0;
+
+            for ( Action act : myActions) {
+                System.out.println( "Action " + n + " :" + act );
+                n++;
+            }
+        }
     }
 
     public void setOppAction() {
@@ -210,7 +221,7 @@ public class Fighting_AI implements AIInterface {
         if ( oppCharacter.getState() == State.AIR ) {
             for ( int i =0; i < actionAir.length; i++ ) {
                 if ( Math.abs( oppMotion.elementAt( Action.valueOf( actionAir[i].name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy ) {
-                    myActions.add( actionAir[i] );
+                    oppActions.add( actionAir[i] );
                 }
             }
         }
@@ -224,6 +235,17 @@ public class Fighting_AI implements AIInterface {
                 if ( Math.abs( oppMotion.elementAt( Action.valueOf( actionGround[i].name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy ) {
                     oppActions.add( actionGround[i] );
                 }
+            }
+        }
+
+        if ( DEBUG_MODE ) {
+            System.out.println( "Number of possible oppActions: " + oppActions.size() );
+
+            int n = 0;
+
+            for ( Action act : oppActions) {
+                System.out.println( "Action " + n + " :" + act );
+                n++;
             }
         }
     }
