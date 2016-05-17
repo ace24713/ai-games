@@ -326,19 +326,19 @@ public class Fighting_AI implements AIInterface {
 
         if ( myCharacter.getState() == State.AIR ) {
             for ( int i =0; i < actionAir.length; i++ ) {
-                if ( Math.abs( myMotion.elementAt( Action.valueOf( actionAir[i].name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy ){ // && allowedActions.contains(actionAir[i])) {
+                if ( Math.abs( myMotion.elementAt( Action.valueOf( actionAir[i].name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy  && allowedActions.contains(actionAir[i])) {
                     myActions.add( actionAir[i] );
                 }
             }
         }
 
         else {
-            if ( Math.abs( myMotion.elementAt( Action.valueOf( spSkill.name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy ){ // && allowedActions.contains(spSkill)) {
+            if ( Math.abs( myMotion.elementAt( Action.valueOf( spSkill.name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy && allowedActions.contains(spSkill)) {
                 myActions.add( spSkill );
             }
 
             for ( int i = 0; i < actionGround.length; i++ ) {
-                if ( Math.abs( myMotion.elementAt( Action.valueOf( actionGround[i].name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy ){ //&& allowedActions.contains(actionGround[i])) {
+                if ( Math.abs( myMotion.elementAt( Action.valueOf( actionGround[i].name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy && allowedActions.contains(actionGround[i])) {
                     myActions.add( actionGround[i] );
                 }
             }

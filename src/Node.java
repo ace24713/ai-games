@@ -150,6 +150,9 @@ public class Node {
                 if (val <= 0)
                 {
                     oppAction.add(apr.action);
+                    if(Fighting_AI.DEBUG_MODE){
+                        System.out.println("Probable Opponent Action: " + apr.action + ", Probability: " + apr.probability);
+                    }
                     break;
                 }
             }
