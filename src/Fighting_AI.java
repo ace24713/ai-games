@@ -9,8 +9,7 @@ import enumerate.Action;
 import enumerate.State;
 import gameInterface.AIInterface;
 
-import java.util.LinkedList;
-import java.util.Vector;
+import java.util.*;
 
 import simulator.Simulator;
 import structs.CharacterData;
@@ -49,6 +48,46 @@ public class Fighting_AI implements AIInterface {
     /* Adjustment frame time delay */
     private static final int FRAME_AHEAD = 14;
 
+    /* Action Ai as Teacher can take*/
+    private LinkedList<Action> teacherActions;
+
+    /* Indicator of times opponent has done an action and if they've mastered it */
+    public enum ActionCount {
+        ZERO, ONCE, TWICE, THRICE, FOURTH, FIFTH, SIXTH, SEVENTH;
+    }
+
+    public ActionCount updateCount( Map<Action, ActionCount> oppActHistory, Action oppAction ) {
+        ActionCount oldCount = oppActHistory.get(oppAction);
+
+        if (oldCount == ActionCount.ZERO)
+            return ActionCount.ONCE;
+
+        if (oldCount == ActionCount.ONCE)
+            return ActionCount.TWICE;
+
+        if (oldCount == ActionCount.TWICE)
+            return ActionCount.THRICE;
+
+        if (oldCount == ActionCount.THRICE)
+            return ActionCount.FOURTH;
+
+        if (oldCount == ActionCount.FOURTH)
+            return ActionCount.FIFTH;
+
+        if (oldCount == ActionCount.FIFTH)
+            return ActionCount.SIXTH;
+
+        if (oldCount == ActionCount.SIXTH)
+            return ActionCount.SEVENTH;
+
+        return oldCount;
+    }
+
+
+    /* History of Opponents understanding of different actions */
+    private Map<Action, ActionCount> oppActHistory;
+
+
     private Vector<MotionData> myMotion;
 
     private Vector<MotionData> oppMotion;
@@ -56,6 +95,18 @@ public class Fighting_AI implements AIInterface {
     private Action[] actionAir;
 
     private Action[] actionGround;
+
+    private Action[] basicAction;
+
+    private Action[] noviceAction;
+
+    private Action[] plannedAction;
+
+    private Action[] complexAction;
+
+    private Action[] expertAction;
+
+    private LinkedList<Action> allowedActions;
 
     private Action spSkill;
 
@@ -106,6 +157,8 @@ public class Fighting_AI implements AIInterface {
 
         this.myActions = new LinkedList<Action>();
         this.oppActions = new LinkedList<Action>();
+        this.oppActHistory = new HashMap<>();
+        this.allowedActions = new LinkedList<>();
 
         this.opponentModel = new KNNPlayerModel();
         opponentModel.initialize(gameData, playerNumber);
@@ -131,6 +184,45 @@ public class Fighting_AI implements AIInterface {
         /* Special Skill (costs most energy and deals most damage) */
         spSkill = Action.STAND_D_DF_FC;
 
+        /* Single Input and no energy needed */
+        basicAction =
+                new Action[] {Action.BACK_STEP, Action.FORWARD_WALK, Action.DASH, Action.JUMP, Action.FOR_JUMP, Action.BACK_JUMP, Action.STAND_GUARD, Action.CROUCH_GUARD, Action.AIR_GUARD, Action.AIR_A, Action.AIR_B, Action.STAND_A, Action.STAND_B, Action.CROUCH_A, Action.CROUCH_B};
+
+        /* Two input and no energy needed */
+        noviceAction =
+                new Action[] {Action.AIR_FA, Action.AIR_FB, Action.AIR_UA, Action.AIR_UB, Action.STAND_FA, Action.STAND_FB, Action.CROUCH_FA, Action.CROUCH_FB};
+
+        /* Requires energy but no more than two inputs */
+        plannedAction =
+                new Action[] {Action.THROW_A, Action.THROW_B, Action.AIR_DA, Action.AIR_DB};
+
+        /* More than two inputs and no energy needed */
+        complexAction =
+                new Action[] {Action.STAND_D_DF_FA, Action.STAND_F_D_DFA, Action.STAND_D_DB_BA, Action.AIR_D_DF_FA};
+
+        /* More than two inputs and energy needed */
+        expertAction =
+                new Action[] {Action.AIR_D_DF_FB, Action.AIR_F_D_DFA, Action.AIR_F_D_DFB, Action.AIR_D_DB_BA, Action.AIR_D_DB_BB, Action.STAND_D_DF_FB, Action.STAND_D_DF_FC, Action.STAND_F_D_DFB, Action.STAND_D_DB_BB};
+
+
+        for (Action act1: actionGround) {
+            oppActHistory.put(act1, ActionCount.ZERO);
+        }
+
+        for (Action act2 : actionGround) {
+            oppActHistory.put(act2, ActionCount.ZERO);
+        }
+
+        oppActHistory.put(spSkill, ActionCount.ZERO);
+
+        for (Action act: basicAction) {
+            allowedActions.add(act);
+        }
+
+        for (Action act: plannedAction) {
+            allowedActions.add(act);
+        }
+
         /* Conditional operator used for initialization. Is this.playerNumber = true ? do this : else this */
         myMotion = this.playerNumber ? gameData.getPlayerOneMotion() : gameData.getPlayerTwoMotion();
         oppMotion = this.playerNumber ? gameData.getPlayerTwoMotion() : gameData.getPlayerOneMotion();
@@ -150,6 +242,47 @@ public class Fighting_AI implements AIInterface {
     public void processing() {
         /* AI determines ability to act */
         if ( canProcessing() ) {
+
+            Action oppAction = oppCharacter.getAction();
+            oppActHistory.replace(oppAction, oppActHistory.get(oppAction), updateCount(oppActHistory, oppAction));
+
+            for (Map.Entry<Action, ActionCount> entry : oppActHistory.entrySet())
+            {
+                if (Arrays.asList(basicAction).contains(entry.getKey())) {
+                    if(entry.getValue() == ActionCount.SEVENTH && !allowedActions.contains(Action.AIR_FA)) {
+                        for (Action act: noviceAction) {
+                            allowedActions.add(act);
+                        }
+                    }
+                }
+
+                if (Arrays.asList(noviceAction).contains(entry.getKey())) {
+                    if(entry.getValue() == ActionCount.SEVENTH && !allowedActions.contains(Action.STAND_F_D_DFA)) {
+                        for (Action act: complexAction) {
+                            allowedActions.add(act);
+                        }
+                    }
+                }
+
+
+                if (Arrays.asList(plannedAction).contains(entry.getKey())) {
+                    if(entry.getValue() == ActionCount.SEVENTH && !allowedActions.contains(spSkill)) {
+                        for (Action act: expertAction) {
+                            allowedActions.add(act);
+                        }
+                }
+                }
+
+                if(DEBUG_MODE){
+                    System.out.println(entry.getKey() + "/" + entry.getValue());
+                }
+            }
+
+            if(DEBUG_MODE){
+                for (Action act:allowedActions) {
+                    System.out.println("Allowed Action: " + act);
+                }
+            }
 
             /* Checks input's state of a command */
             if ( commandCenter.getskillFlag() ) {
@@ -193,19 +326,19 @@ public class Fighting_AI implements AIInterface {
 
         if ( myCharacter.getState() == State.AIR ) {
             for ( int i =0; i < actionAir.length; i++ ) {
-                if ( Math.abs( myMotion.elementAt( Action.valueOf( actionAir[i].name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy ) {
+                if ( Math.abs( myMotion.elementAt( Action.valueOf( actionAir[i].name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy ){ // && allowedActions.contains(actionAir[i])) {
                     myActions.add( actionAir[i] );
                 }
             }
         }
 
         else {
-            if ( Math.abs( myMotion.elementAt( Action.valueOf( spSkill.name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy ) {
+            if ( Math.abs( myMotion.elementAt( Action.valueOf( spSkill.name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy ){ // && allowedActions.contains(spSkill)) {
                 myActions.add( spSkill );
             }
 
             for ( int i = 0; i < actionGround.length; i++ ) {
-                if ( Math.abs( myMotion.elementAt( Action.valueOf( actionGround[i].name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy ) {
+                if ( Math.abs( myMotion.elementAt( Action.valueOf( actionGround[i].name() ).ordinal() ).getAttackStartAddEnergy() ) <= energy ){ //&& allowedActions.contains(actionGround[i])) {
                     myActions.add( actionGround[i] );
                 }
             }

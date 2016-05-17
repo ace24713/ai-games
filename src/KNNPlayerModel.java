@@ -1,8 +1,5 @@
 /*
- * mizunoAI
- * Version 1.01
- * Last update on 1st April. 2015
- * Made compatible with FightingICE version 1.03
+ * Adapted from mizunoAI
  */
 
 import java.util.Deque;
