@@ -1,5 +1,5 @@
 /*
- * Adapted from mizunoAI
+ * Adapted from mizunoAI found at ICE_Fighting website
  */
 
 import java.util.Deque;

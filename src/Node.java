@@ -1,4 +1,6 @@
 /**
+ * AI built using MCTS AI model and code by author Taichi from ICE_Fighting
+ *
  * Created by Jonathan on 5/3/2016.
  */
 

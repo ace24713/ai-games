@@ -1,7 +1,7 @@
 /**
  * AI built using MCTS AI model and code by author Taichi from ICE_Fighting
  *
- * Created by Jonathan on 4/8/2016.
+ * Modified by Jonathan on 4/8/2016.
  */
 
 import com.sun.org.apache.bcel.internal.generic.NEW;
